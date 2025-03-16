@@ -5,7 +5,7 @@ from models import WorkoutLog
 from pydantic import BaseModel, Field
 from typing import List
 from datetime import datetime
-from fastapi import HTTPException
+from fastapi import HTTPException, File, UploadFile
 from models import User
 from auth import hash_password, verify_password, get_current_user
 from sqlalchemy.exc import IntegrityError
@@ -133,3 +133,22 @@ def login(user: UserLogin, db: Session = Depends(get_db)):
     # Create JWT token
     access_token = create_access_token({"sub": db_user.email, "user_id": db_user.id, "is_admin": db_user.is_admin})
     return {"access_token": access_token, "token_type": "bearer"}
+
+# Mock response for now
+@app.post("/voice-log/")
+async def voice_log(file: UploadFile = File(...), current_user: dict = Depends(get_current_user)):
+    # In future: process file with AI (Whisper, Google, etc.)
+
+    # For now: pretend we parsed it and return structured workout data
+    mock_response = {
+        "exercise_name": "Push Ups",
+        "sets": 3,
+        "reps": 10,
+        "weight": 0,
+        "note": "Generated from voice command"
+    }
+
+    return {
+        "message": "Voice command processed successfully.",
+        "parsed_workout": mock_response
+    }
