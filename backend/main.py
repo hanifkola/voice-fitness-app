@@ -90,3 +90,6 @@ def delete_workout(workout_id: int, db: Session = Depends(get_db)):
     db.delete(db_workout)
     db.commit()
     return {"message": f"Workout log {workout_id} deleted successfully."}
+@app.get("/")
+def read_root():
+    return {"message": "Welcome to Voice Fitness API! Check /docs for full API."}
