@@ -11,12 +11,23 @@ from auth import hash_password, verify_password, get_current_user
 from sqlalchemy.exc import IntegrityError
 from pydantic import EmailStr
 from jwt_handler import create_access_token, verify_access_token
+from fastapi.middleware.cors import CORSMiddleware 
 
 
 
 
 # Initialize FastAPI app
 app = FastAPI()
+
+
+# === CORS Settings for Development and Testing ===
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # Allow all for now — change to specific domains later
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 # Dependency to get DB session
 def get_db():
