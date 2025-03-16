@@ -6,6 +6,11 @@ from pydantic import BaseModel, Field
 from typing import List
 from datetime import datetime
 from fastapi import HTTPException
+from models import User
+from auth import hash_password, verify_password
+from sqlalchemy.exc import IntegrityError
+from pydantic import EmailStr
+
 
 
 # Initialize FastAPI app
@@ -93,3 +98,21 @@ def delete_workout(workout_id: int, db: Session = Depends(get_db)):
 @app.get("/")
 def read_root():
     return {"message": "Welcome to Voice Fitness API! Check /docs for full API."}
+class UserCreate(BaseModel):
+    email: EmailStr
+    password: str
+
+@app.post("signup/")
+def create_user(user: UserCreate, db: Session = Depends(get_db)):
+    hashed_pw = hash_password(user.password)
+    db_user = User(email=user.email, hashed_password=hashed_pw)
+
+    db.add(db_user)
+    try:
+        db.commit()
+    except IntegrityError:
+        db.rollback()
+        return {"error": "Email already registered."}
+
+    db.refresh(db_user)
+    return {"message": "User created successfully", "user_id": db_user.id}
