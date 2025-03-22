@@ -1,17 +1,11 @@
+import os
 from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
-from models import Base
+from sqlalchemy.orm import sessionmaker, declarative_base
 
-DATABASE_URL = "postgresql://hanif:YbA3QHGX8CYNR2WtJYKfzzsx6Z4HpzaI@dpg-cvfc81ggph6c73bbi1lg-a/vftest"
+# Put your exact connection string here for testing
+DATABASE_URL = "postgresql://user123:password123@dpg-cvfc81ggph6c73bbi1lg-a.oregon-postgres.render.com:5432/voice_fitness_db"
 
-#create database engine
 engine = create_engine(DATABASE_URL)
-
-#create session local (for interacting with the database)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
-
-#delare base class for ORM models
 Base = declarative_base()
-
-#create all table in the database (if not exists)
 Base.metadata.create_all(bind=engine)
