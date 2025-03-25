@@ -139,13 +139,13 @@ class UserLogin(BaseModel):
     password: str
 
 @app.post("/login/")
-def login(user: UserLogin, db: Session = Depends(get_db)):
-    db_user = db.query(User).filter(User.email == user.email).first()
-    if not db_user or not verify_password(user.password, db_user.hashed_password):
-        return {"error": "Invalid email or password"}
-
-    # Create JWT token
-    access_token = create_access_token({"sub": db_user.email, "user_id": db_user.id, "is_admin": db_user.is_admin})
+def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)):
+    user = db.query(User).filter(User.email == form_data.username).first()
+    if not user or not verify_password(form_data.password, user.hashed_password):
+        raise HTTPException(status_code=400, detail="Invalid username or password")
+    
+    # Create a token (Example only, you should customize it)
+    access_token = jwt.encode({"sub": user.email, "exp": datetime.utcnow() + timedelta(minutes=30)}, "SECRET_KEY", algorithm="HS256")
     return {"access_token": access_token, "token_type": "bearer"}
 
 # Mock response for now
