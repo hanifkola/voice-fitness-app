@@ -116,7 +116,7 @@ class UserCreate(BaseModel):
     email: EmailStr
     password: str
 
-@app.post("signup/")
+@app.post("/signup/")
 def create_user(user: UserCreate, db: Session = Depends(get_db)):
     hashed_pw = hash_password(user.password)
     db_user = User(email=user.email, hashed_password=hashed_pw)
