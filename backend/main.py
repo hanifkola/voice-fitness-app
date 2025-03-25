@@ -12,7 +12,7 @@ from sqlalchemy.exc import IntegrityError
 from pydantic import EmailStr
 from jwt_handler import create_access_token
 from fastapi.middleware.cors import CORSMiddleware 
-from fastapi.security import OAuth2PasswordBearer
+from fastapi.security import OAuth2PasswordBearer,OAuth2PasswordRequestForm 
 
 
 
