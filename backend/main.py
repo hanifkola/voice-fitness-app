@@ -10,8 +10,9 @@ from models import User
 from auth import hash_password, verify_password, get_current_user
 from sqlalchemy.exc import IntegrityError
 from pydantic import EmailStr
-from jwt_handler import create_access_token, verify_access_token
+from jwt_handler import create_access_token
 from fastapi.middleware.cors import CORSMiddleware 
+from fastapi.security import OAuth2PasswordBearer
 
 
 
@@ -19,6 +20,8 @@ from fastapi.middleware.cors import CORSMiddleware
 # Initialize FastAPI app
 app = FastAPI()
 
+# Correct the token URL to the login endpoint
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/login/")
 
 # === CORS Settings for Development and Testing ===
 app.add_middleware(
