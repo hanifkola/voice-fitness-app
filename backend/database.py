@@ -1,11 +1,21 @@
 import os
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, declarative_base
+from dotenv import load_dotenv
+from models import Base  # Make sure you import Base from your models.py
 
-# Put your exact connection string here for testing
-DATABASE_URL = "postgresql://hanif:YbA3QHGX8CYNR2WtJYKfzzsx6Z4HpzaI@dpg-cvfc81ggph6c73bbi1lg-a.oregon-postgres.render.com/vftest"
+# Load environment variables from .env file
+load_dotenv()
 
+# Read DATABASE_URL from environment variables
+DATABASE_URL = os.getenv("DATABASE_URL")  
+
+# Create the PostgreSQL database connection
 engine = create_engine(DATABASE_URL)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
-Base.metadata.create_all(bind=engine)
+
+# Create all tables in the PostgreSQL database
+if __name__ == "__main__":
+    Base.metadata.create_all(bind=engine)
+    print("✅ All tables created successfully!")
