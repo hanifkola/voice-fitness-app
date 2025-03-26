@@ -2,7 +2,7 @@ from sqlalchemy import Column, Integer, String, Float, DateTime, ForeignKey, Boo
 from sqlalchemy.ext.declarative import declarative_base
 from datetime import datetime
 from typing import Optional
-from pydantic import Basemodel
+from pydantic import BaseModel
 
 
 Base = declarative_base()
@@ -32,4 +32,17 @@ class WorkoutCreate(BaseModel):
     exercise_name: str
     sets: int
     reps: int
-    weight: float 
+    weight: float
+
+
+# Response model (what API returns to user)
+class Workout(BaseModel):
+    id: int
+    exercise_name: str
+    sets: int
+    reps: int
+    weight: float
+    timestamp: str  # Or datetime, but string is fine for now
+
+    class Config:
+        orm_mode = True  # This is needed to work with SQLAlchemy objects
