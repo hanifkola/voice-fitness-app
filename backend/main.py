@@ -1,10 +1,10 @@
-from fastapi import FastAPI, Depends
+from fastapi import FastAPI, Depends, HTTPException
 from sqlalchemy.orm import Session
 from database import SessionLocal
 from models import WorkoutLog
 from pydantic import BaseModel, Field
 from typing import List
-from datetime import datetime
+from datetime import datetime, timedelta
 from fastapi import HTTPException, File, UploadFile
 from models import User
 from auth import hash_password, verify_password, get_current_user
@@ -13,6 +13,8 @@ from pydantic import EmailStr
 from jwt_handler import create_access_token
 from fastapi.middleware.cors import CORSMiddleware 
 from fastapi.security import OAuth2PasswordBearer,OAuth2PasswordRequestForm 
+from hashing import verify_password 
+from jose import jwt 
 
 
 
@@ -141,11 +143,16 @@ class UserLogin(BaseModel):
 @app.post("/login/")
 def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)):
     user = db.query(User).filter(User.email == form_data.username).first()
+    
     if not user or not verify_password(form_data.password, user.hashed_password):
         raise HTTPException(status_code=400, detail="Invalid username or password")
     
-    # Create a token (Example only, you should customize it)
-    access_token = jwt.encode({"sub": user.email, "exp": datetime.utcnow() + timedelta(minutes=30)}, "SECRET_KEY", algorithm="HS256")
+    # Generate JWT token
+    access_token = jwt.encode(
+        {"sub": user.email, "exp": datetime.utcnow() + timedelta(minutes=30)},
+        "SECRET_KEY",
+        algorithm="HS256"
+    )
     return {"access_token": access_token, "token_type": "bearer"}
 
 # Mock response for now
