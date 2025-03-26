@@ -45,4 +45,4 @@ class Workout(BaseModel):
     timestamp: str  # Or datetime, but string is fine for now
 
     class Config:
-        orm_mode = True  # This is needed to work with SQLAlchemy objects
+        from_attributes = True  
