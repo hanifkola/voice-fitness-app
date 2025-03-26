@@ -1,5 +1,4 @@
-from fastapi import FastAPI, Depends, HTTPException
-from sqlalchemy.orm import Session
+from fastapi import FastAPI, Depends, HTTPException, APIRouter
 from database import SessionLocal, get_db
 from models import WorkoutLog, WorkoutCreate,User, Workout
 from pydantic import BaseModel, Field
@@ -15,6 +14,7 @@ from fastapi.security import OAuth2PasswordBearer,OAuth2PasswordRequestForm
 from hashing import verify_password 
 from jose import jwt 
 from dependencies import get_current_user
+from sqlalchemy.orm import Session
 
 
 
@@ -71,9 +71,14 @@ class workout(BaseModel):
 class config:
     orm_mode = True #important to work with sqlalchemy models 
 # API to get all workouts for the logged-in user
-@app.get("/workouts/", response_model=List[Workout])  # Use the defined `Workout` model
+@app.get("/workouts/", response_model=List[Workout])
 def read_workouts(db: Session = Depends(get_db), current_user: dict = Depends(get_current_user)):
     workouts = db.query(WorkoutLog).filter(WorkoutLog.user_id == current_user["user_id"]).all()
+    
+    # Convert timestamp to string
+    for workout in workouts:
+        workout.timestamp = workout.timestamp.strftime('%Y-%m-%d %H:%M:%S')
+        
     return workouts
 
 # API to update an existing workout log
