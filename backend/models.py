@@ -1,6 +1,8 @@
 from sqlalchemy import Column, Integer, String, Float, DateTime, ForeignKey, Boolean
 from sqlalchemy.ext.declarative import declarative_base
 from datetime import datetime
+from typing import Optional
+from pydantic import Basemodel
 
 
 Base = declarative_base()
@@ -25,4 +27,9 @@ class User(Base):
     is_active = Column(Boolean, default=True)
     is_admin = Column(Boolean, default=False)
     
-    
+# Pydantic Model for Workout Creation
+class WorkoutCreate(BaseModel):
+    exercise_name: str
+    sets: int
+    reps: int
+    weight: float 

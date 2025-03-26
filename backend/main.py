@@ -1,12 +1,11 @@
 from fastapi import FastAPI, Depends, HTTPException
 from sqlalchemy.orm import Session
-from database import SessionLocal
-from models import WorkoutLog
+from database import SessionLocal, get_db
+from models import WorkoutLog, WorkoutCreate,User, Workout
 from pydantic import BaseModel, Field
 from typing import List
 from datetime import datetime, timedelta
 from fastapi import HTTPException, File, UploadFile
-from models import User
 from auth import hash_password, verify_password, get_current_user
 from sqlalchemy.exc import IntegrityError
 from pydantic import EmailStr
@@ -15,6 +14,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import OAuth2PasswordBearer,OAuth2PasswordRequestForm 
 from hashing import verify_password 
 from jose import jwt 
+from dependencies import get_current_user
 
 
 
@@ -42,21 +42,7 @@ def get_db():
     finally:
         db.close()
 
-# Pydantic model for incoming workout data
-class WorkoutCreate(BaseModel):
-    exercise_name: str = Field(..., min_length=2, max_length=100) #exercise name must be between 2 and 100 characters
-    sets: int = Field(..., gt=0, lt=100)  # Must be greater than 0, less than 100
-    reps: int = Field(..., gt=0, lt=100)  # Must be greater than 0, less than 100
-    weight: float = Field(..., gt=0)      # Must be greater than 0
 
-# Response model (what API returns to user)
-class Workout(BaseModel):
-    id: int
-    exercise_name: str
-    sets: int
-    reps: int
-    weight: float
-    timestamp: str  # Or datetime, but string is fine for now
 
 class Config:
         orm_mode = True  # To allow working with SQLAlchemy models directly
@@ -84,17 +70,21 @@ class workout(BaseModel):
     timestamp: datetime
 class config:
     orm_mode = True #important to work with sqlalchemy models 
-# GET API to fetch all workout logs 
-@app.get("/workouts/", response_model=List[workout])
+# API to get all workouts for the logged-in user
+@app.get("/workouts/", response_model=List[Workout])  # Use the defined `Workout` model
 def read_workouts(db: Session = Depends(get_db), current_user: dict = Depends(get_current_user)):
     workouts = db.query(WorkoutLog).filter(WorkoutLog.user_id == current_user["user_id"]).all()
     return workouts
+
 # API to update an existing workout log
-@app.put("/workouts/{workout_id}", response_model=Workout)
+@app.put("/workouts/{workout_id}", response_model=Workout)  # Use the defined `Workout` model
 def update_workout(workout_id: int, workout: WorkoutCreate, db: Session = Depends(get_db), current_user: dict = Depends(get_current_user)):
     db_workout = db.query(WorkoutLog).filter(WorkoutLog.id == workout_id).first()
     if db_workout is None:
         raise HTTPException(status_code=404, detail="Workout log not found")
+
+    if db_workout.user_id != current_user["user_id"]:
+        raise HTTPException(status_code=403, detail="Not authorized to update this workout")
 
     db_workout.exercise_name = workout.exercise_name
     db_workout.sets = workout.sets
