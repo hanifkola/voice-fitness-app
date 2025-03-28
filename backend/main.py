@@ -1,23 +1,18 @@
-from fastapi import FastAPI, Depends, HTTPException, APIRouter
-from database import SessionLocal, get_db
-from models import WorkoutLog, WorkoutCreate,User, Workout
-from pydantic import BaseModel, Field
-from typing import List
-from datetime import datetime, timedelta
-from fastapi import HTTPException, File, UploadFile
-from auth import hash_password, verify_password, get_current_user
-from sqlalchemy.exc import IntegrityError
-from pydantic import EmailStr
-from jwt_handler import create_access_token
-from fastapi.middleware.cors import CORSMiddleware 
-from fastapi.security import OAuth2PasswordBearer,OAuth2PasswordRequestForm 
-from hashing import verify_password 
-from jose import jwt 
-from dependencies import get_current_user
+from fastapi import FastAPI, Depends, HTTPException, File, UploadFile
+from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
+from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
-
-
-
+from sqlalchemy.exc import IntegrityError
+from datetime import datetime, timedelta
+from typing import List
+from jose import jwt
+from pydantic import BaseModel, EmailStr
+from database import SessionLocal
+import models
+from models import WorkoutLogCreate, WorkoutCreate, User, WorkoutLogResponse
+from auth import hash_password, verify_password
+from dependencies import get_current_user
+from jwt_handler import create_access_token
 
 # Initialize FastAPI app
 app = FastAPI()
@@ -25,10 +20,10 @@ app = FastAPI()
 # Correct the token URL to the login endpoint
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/login/")
 
-# === CORS Settings for Development and Testing ===
+# CORS settings (Allow all origins for now)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Allow all for now — change to specific domains later
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -42,76 +37,23 @@ def get_db():
     finally:
         db.close()
 
+# Seed categories and equipment into the database
+def seed_data(db: Session):
+    categories = ["Strength", "Cardio", "Flexibility"]
+    equipment = ["Dumbbell", "Barbell", "Machine", "Bodyweight"]
 
+    for category in categories:
+        if not db.query(models.WorkoutCategory).filter_by(name=category).first():
+            db.add(models.WorkoutCategory(name=category))
 
-class Config:
-        orm_mode = True  # To allow working with SQLAlchemy models directly
-# API to add a new workout log
-@app.post("/workouts/")
-def create_workout(workout: WorkoutCreate, db: Session = Depends(get_db), current_user: dict = Depends(get_current_user)):
-    db_workout = WorkoutLog(
-        exercise_name=workout.exercise_name,
-        sets=workout.sets,
-        reps=workout.reps,
-        weight=workout.weight,
-        user_id=current_user["user_id"]  #user_id is the id of the user who is logged in
-    )
-    db.add(db_workout)
-    db.commit()
-    db.refresh(db_workout)
-    return db_workout
-
-class workout(BaseModel):
-    id: int
-    exercise_name: str
-    sets: int
-    reps: int
-    weight: float
-    timestamp: datetime
-class config:
-    orm_mode = True #important to work with sqlalchemy models 
-# API to get all workouts for the logged-in user
-@app.get("/workouts/", response_model=List[Workout])
-def read_workouts(db: Session = Depends(get_db), current_user: dict = Depends(get_current_user)):
-    workouts = db.query(WorkoutLog).filter(WorkoutLog.user_id == current_user["user_id"]).all()
-    
-    # Convert timestamp to string
-    for workout in workouts:
-        workout.timestamp = workout.timestamp.strftime('%Y-%m-%d %H:%M:%S')
-        
-    return workouts
-
-# API to update an existing workout log
-@app.put("/workouts/{workout_id}", response_model=Workout)  # Use the defined `Workout` model
-def update_workout(workout_id: int, workout: WorkoutCreate, db: Session = Depends(get_db), current_user: dict = Depends(get_current_user)):
-    db_workout = db.query(WorkoutLog).filter(WorkoutLog.id == workout_id).first()
-    if db_workout is None:
-        raise HTTPException(status_code=404, detail="Workout log not found")
-
-    if db_workout.user_id != current_user["user_id"]:
-        raise HTTPException(status_code=403, detail="Not authorized to update this workout")
-
-    db_workout.exercise_name = workout.exercise_name
-    db_workout.sets = workout.sets
-    db_workout.reps = workout.reps
-    db_workout.weight = workout.weight
+    for equip in equipment:
+        if not db.query(models.Equipment).filter_by(name=equip).first():
+            db.add(models.Equipment(name=equip))
 
     db.commit()
-    db.refresh(db_workout)
-    return db_workout
-# API to delete an existing workout log
-@app.delete("/workouts/{workout_id}")
-def delete_workout(workout_id: int, db: Session = Depends(get_db), current_user: dict = Depends(get_current_user)):
-    db_workout = db.query(WorkoutLog).filter(WorkoutLog.id == workout_id, WorkoutLog.user_id == current_user["user_id"]).first()
-    if db_workout is None:
-         raise HTTPException(status_code=404, detail="Workout log not found")
 
-    db.delete(db_workout)
-    db.commit()
-    return {"message": f"Workout log {workout_id} deleted successfully."}
-@app.get("/")
-def read_root():
-    return {"message": "Welcome to Voice Fitness API! Check /docs for full API."}
+# === User Authentication ===
+
 class UserCreate(BaseModel):
     email: EmailStr
     password: str
@@ -142,7 +84,6 @@ def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depend
     if not user or not verify_password(form_data.password, user.hashed_password):
         raise HTTPException(status_code=400, detail="Invalid username or password")
     
-    # Generate JWT token
     access_token = jwt.encode(
         {"sub": user.email, "exp": datetime.utcnow() + timedelta(minutes=30)},
         "SECRET_KEY",
@@ -150,12 +91,60 @@ def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depend
     )
     return {"access_token": access_token, "token_type": "bearer"}
 
-# Mock response for now
+# === Workout APIs ===
+
+@app.post("/workouts/")
+def create_workout(workout: WorkoutLogCreate, db: Session = Depends(get_db), current_user: dict = Depends(get_current_user)):
+    db_workout = models.WorkoutLog(
+        workout_id=workout.workout_id,
+        sets=workout.sets,
+        reps=workout.reps,
+        weight=workout.weight,
+        user_id=current_user["user_id"]
+    )
+    db.add(db_workout)
+    db.commit()
+    db.refresh(db_workout)
+    return db_workout
+
+@app.get("/workouts/", response_model=List[WorkoutLogResponse])
+def read_workouts(db: Session = Depends(get_db), current_user: dict = Depends(get_current_user)):
+    workouts = db.query(models.WorkoutLog).filter(models.WorkoutLog.user_id == current_user["user_id"]).all()
+    return workouts
+
+@app.put("/workouts/{workout_id}", response_model=WorkoutLogResponse)
+def update_workout(workout_id: int, workout: WorkoutLogCreate, db: Session = Depends(get_db), current_user: dict = Depends(get_current_user)):
+    db_workout = db.query(models.WorkoutLog).filter(models.WorkoutLog.id == workout_id).first()
+    if db_workout is None:
+        raise HTTPException(status_code=404, detail="Workout log not found")
+    
+    if db_workout.user_id != current_user["user_id"]:
+        raise HTTPException(status_code=403, detail="Not authorized to update this workout")
+
+    db_workout.workout_id = workout.workout_id
+    db_workout.sets = workout.sets
+    db_workout.reps = workout.reps
+    db_workout.weight = workout.weight
+
+    db.commit()
+    db.refresh(db_workout)
+    return db_workout
+
+@app.delete("/workouts/{workout_id}")
+def delete_workout(workout_id: int, db: Session = Depends(get_db), current_user: dict = Depends(get_current_user)):
+    db_workout = db.query(models.WorkoutLog).filter(models.WorkoutLog.id == workout_id, models.WorkoutLog.user_id == current_user["user_id"]).first()
+    if db_workout is None:
+         raise HTTPException(status_code=404, detail="Workout log not found")
+
+    db.delete(db_workout)
+    db.commit()
+    return {"message": f"Workout log {workout_id} deleted successfully."}
+
+# === Voice Command (Mock Implementation) ===
+
 @app.post("/voice-log/")
 async def voice_log(file: UploadFile = File(...), current_user: dict = Depends(get_current_user)):
     # In future: process file with AI (Whisper, Google, etc.)
-
-    # For now: pretend we parsed it and return structured workout data
     mock_response = {
         "exercise_name": "Push Ups",
         "sets": 3,
@@ -163,8 +152,8 @@ async def voice_log(file: UploadFile = File(...), current_user: dict = Depends(g
         "weight": 0,
         "note": "Generated from voice command"
     }
+    return {"message": "Voice command processed successfully.", "parsed_workout": mock_response}
 
-    return {
-        "message": "Voice command processed successfully.",
-        "parsed_workout": mock_response
-    }
+@app.get("/")
+def read_root():
+    return {"message": "Welcome to Voice Fitness API! Check /docs for full API."}
