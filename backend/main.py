@@ -157,3 +157,11 @@ async def voice_log(file: UploadFile = File(...), current_user: dict = Depends(g
 @app.get("/")
 def read_root():
     return {"message": "Welcome to Voice Fitness API! Check /docs for full API."}
+
+@app.on_event("startup")
+def startup_event():
+    db = SessionLocal()
+    try:
+        seed_data(db)
+    finally:
+        db.close()

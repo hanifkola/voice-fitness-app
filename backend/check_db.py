@@ -5,9 +5,9 @@ db = SessionLocal()
 
 try:
     # Try fetching a table entry to check the connection
-    test_entry = db.query(models.Workout).first()
+    test_entry = db.query(models.Equipment).first()
     if test_entry:
-        print(f"Connected! First workout: {test_entry.exercise_name}")
+        print(f"Connected! First workout: {test_entry.name}")
     else:
         print("Connected, but no workouts found.")
 except Exception as e:
